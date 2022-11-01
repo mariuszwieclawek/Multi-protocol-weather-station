@@ -65,25 +65,28 @@ class AM2320:
         reading_frame_format = ustruct.pack('bbb', AM2320_READ_REG, AM2320_REG_HUM_H, number_of_registers) # create 3 bytes frame
 
         # Send reading frame to sensor
-        i2c.writeto(self.address, reading_frame_format)
+        self.i2c.writeto(self.address, reading_frame_format)
 
         # Wait at least 1.5ms (documentation)
         time.sleep_ms(2)
 
         # Read data response from sensor
-        buff = i2c.readfrom_mem(self.address, 0, 8) # read 6 bytes
+        buff = self.i2c.readfrom_mem(self.address, 0, 8) # read 6 bytes
 
         # Wait at least 30us (documentation)
         time.sleep_us(50)
 
         # CRC calculation
-        crc = buff[7]<<8 | buff[6] # little endian 
+        crc = buff[7]<<8 | buff[6] # little endian
         if (crc != self.crc16(buff[:-2])):
             raise Exception('AM2320 TEMPERATURE CRC ERROR')
-        
+
         # Temperature and humidity calculation
         self.hum = self.humidity_calc(buff[2], buff[3])
         self.temp = self.temperature_calc(buff[4], buff[5])
+
+        # Wait before next measurement cycle
+        time.sleep_ms(100)
 
 
 i2c = I2C(0, I2C.MASTER, baudrate=100000)
@@ -93,5 +96,5 @@ while True:
     am2320.temp_and_hum_measurement()
     print(am2320.hum)
     print(am2320.temp)
-    time.sleep(1)
-
+    temp = am2320.temp
+    print(type(test))

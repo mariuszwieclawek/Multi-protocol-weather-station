@@ -3,6 +3,22 @@
 		{
 			"name": "MPWS_Project",
 			"path": "MPWS_Project"
+		},
+		{
+			"name": "Project_Test",
+			"path": "../../../7 semestr/Project_Test"
+		},
+		{
+			"name": "serial:/COM12",
+			"uri": "serial://com12"
+		},
+		{
+			"name": "Client_A",
+			"path": "Client_A"
+		},
+		{
+			"name": "Client_B",
+			"path": "Client_B"
 		}
 	],
 	"settings": {}
