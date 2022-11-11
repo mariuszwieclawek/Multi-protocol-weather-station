@@ -1,4 +1,4 @@
-from machine import I2C
+from machine import I2C, Timer
 from network import WLAN
 import pycom
 import _thread
@@ -11,34 +11,49 @@ pycom.heartbeat(False)
 pycom.rgbled(0x0000FF)  # Blue
 
 lock = _thread.allocate_lock()
+chrono = Timer.Chrono()
+
+PRESSURE = 0
+TEMPERATURE = 0
+MEASURE_READY = False
 
 # LPS25HB sensor thread
 def lps25hb_thread(lps25hb):
     global PRESSURE
     global TEMPERATURE
+    global MEASURE_READY
+    chrono.start()
     while True:
-        lock.acquire()
-        PRESSURE = lps25hb.pressure_meas()
-        TEMPERATURE = lps25hb.temperature_meas()
-        print('Pressure: ', PRESSURE)
-        print('Temperature: ', TEMPERATURE)
-        lock.release()
+        start = chrono.read() # to calculate the time of measurement
+        with lock:
+            PRESSURE = lps25hb.pressure_meas()
+            TEMPERATURE = lps25hb.temperature_meas()
+            MEASURE_READY = True
+            print('PRESSURE: ', PRESSURE)
+            print('TEMPERATURE: ', TEMPERATURE)
+        end = chrono.read() # read elapsed time
+        time.sleep(1-(end-start)) # meas every one second sleep=1-measurement_time
+
 
 
 # WiFi client thread
 def wifi_client_thread(clientsocket):
+    global PRESSURE
+    global TEMPERATURE
+    global MEASURE_READY
     clientsocket.send('LPS25HB_CLIENT')
     while True:
-        lock.acquire()
-        print('Send pressure and temperature measurement to server')
-        data = ustruct.pack('ff', PRESSURE, TEMPERATURE)
-        clientsocket.send(data)
-        lock.release()
+        if MEASURE_READY == True: # when measure is ready
+            with lock:
+                print('Send pressure and temperature measurement to server')
+                data = ustruct.pack('ff', PRESSURE, TEMPERATURE)
+                clientsocket.send(data)
+                MEASURE_READY = False
     client_socket.close()
 
 
 def main():
-    # initialization
+    # Initialization
     i2c = I2C(0, I2C.MASTER, baudrate=100000)
     lps25hb = LPS25HB(i2c)
 

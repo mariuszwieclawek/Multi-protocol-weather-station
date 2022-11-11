@@ -1,4 +1,4 @@
-from machine import I2C
+from machine import I2C, Timer
 from network import WLAN
 import pycom
 import _thread
@@ -11,30 +11,45 @@ pycom.heartbeat(False)
 pycom.rgbled(0x7f0000) # Red
 
 lock = _thread.allocate_lock()
+chrono = Timer.Chrono()
+
+HUMIDITY = 0
+TEMPERATURE = 0
+MEASURE_READY = False
+
 
 # AM2320 sensor thread
 def am2320_thread(am2320):
     global HUMIDITY
     global TEMPERATURE
+    global MEASURE_READY
+    chrono.start()
     while True:
-        lock.acquire()
-        am2320.temp_and_hum_measurement()
-        HUMIDITY = am2320.hum
-        TEMPERATURE = am2320.temp
-        print('Humidity: ', HUMIDITY)
-        print('Temperature: ', TEMPERATURE)
-        lock.release()
+        start = chrono.read() # to calculate the time of measurement
+        with lock:
+            am2320.temp_and_hum_measurement()
+            HUMIDITY = am2320.hum
+            TEMPERATURE = am2320.temp
+            MEASURE_READY = True
+            print('Humidity: ', HUMIDITY)
+            print('Temperature: ', TEMPERATURE)
+        end = chrono.read() # read elapsed time
+        time.sleep(1-(end-start)) # meas every one second sleep=1-measurement_time
 
 
 # WiFi client thread
 def wifi_client_thread(clientsocket):
+    global PRESSURE
+    global TEMPERATURE
+    global MEASURE_READY
     clientsocket.send('AM2320_CLIENT')
     while True:
-        lock.acquire()
-        print('Send humidity and temperature measurement to server')
-        data = ustruct.pack('ff', HUMIDITY, TEMPERATURE)
-        clientsocket.send(data)
-        lock.release()
+        if MEASURE_READY == True:
+            with lock:
+                print('Send humidity and temperature measurement to server')
+                data = ustruct.pack('ff', HUMIDITY, TEMPERATURE)
+                clientsocket.send(data)
+                MEASURE_READY = False
     client_socket.close()
 
 
