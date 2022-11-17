@@ -18,6 +18,12 @@ class PC_CLIENT:
         self.measurement_socket.connect(socket.getaddrinfo(self.SERVER_ADDRESS, self.SERVER_PORT)[0][-1])
         print('Connected to the server - measurement socket')
         self.measurement_socket.send(b'CLIENT_PC_MEASUREMENT')  # identify
+        login_status = self.measurement_socket.recv(16)  # receive if you logged properly
+        print(login_status)
+        if login_status == 'SUCCESS':
+            print('Logged properly to the server')
+        elif login_status == 'FAILURE':
+            print('Failure logged to the server')
         # Create thread for measurement
         self.meas_thread = threading.Thread(target=self.client_meas_thread, args=(self.measurement_socket,))
         self.meas_thread.daemon = True  # Daemon threads are those threads which are killed when the main program exits.

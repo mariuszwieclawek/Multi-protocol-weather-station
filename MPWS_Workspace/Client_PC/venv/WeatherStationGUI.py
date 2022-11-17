@@ -3,25 +3,28 @@ from tkinter import messagebox
 import sys
 import socket
 import threading
+import WeatherStationGraphs as wsgraph
+import matplotlib.pyplot as plt
 
 
-class WeatherStationGUI:
-    def __init__(self, win):
+class WeatherStationGUI(tk.Tk):
+    def __init__(self, client_pc):
+        super().__init__()
+        self.client_pc = client_pc
         self.proto = 'none'
         self.protobuff = 'none'
-        self.window = win
-        self.window.geometry("490x250+550+300")
-        self.window.title("Weather station controller")
-        self.window.resizable(0, 0)
-        self.window.protocol("WM_DELETE_WINDOW", self.close_window)
+        self.geometry("490x315+550+300")
+        self.title("Weather station controller")
+        self.resizable(0, 0)
+        self.protocol("WM_DELETE_WINDOW", self.close_window)
 
         # Create frame with label
-        self.frame_messg = tk.Frame(self.window, relief=tk.RAISED, bd=2)
+        self.frame_messg = tk.Frame(self, relief=tk.RAISED, bd=2)
         self.label_messg = tk.Label(self.frame_messg, text="Please choose protocol:", font=12, width=43, height=2)
         self.label_messg.pack(padx=5, pady=5)
 
         # Create frame with buttons
-        self.frame_buttons = tk.Frame(self.window, relief=tk.RAISED, bd=2)
+        self.frame_buttons = tk.Frame(self, relief=tk.RAISED, bd=2)
         self.button_wifi = tk.Button(self.frame_buttons, text="WiFi", command=self.wifi_choice, font=12)
         self.button_ble = tk.Button(self.frame_buttons, text="BLE", command=self.ble_choice, font=12)
         self.button_sigfox = tk.Button(self.frame_buttons, text="Sigfox", command=self.sigfox_choice, font=12)
@@ -32,20 +35,26 @@ class WeatherStationGUI:
         self.button_lte.grid(row=1, column=3, padx=5, pady=5, sticky="nsew")
 
         # Create frame with label
-        self.frame_proto_choice = tk.Frame(self.window, relief=tk.RAISED, bd=2)
+        self.frame_proto_choice = tk.Frame(self, relief=tk.RAISED, bd=2)
         self.label_proto_choice = tk.Label(self.frame_proto_choice, text=f"Choice: {self.proto}", font=12, width=43, height=2)
         self.label_proto_choice.pack(padx=5, pady=5)
 
         # Create frame with label for interacting with user
-        self.frame_inter = tk.Frame(self.window, relief=tk.RAISED, bd=2)
+        self.frame_inter = tk.Frame(self, relief=tk.RAISED, bd=2)
         self.label_inter = tk.Label(self.frame_inter, text=f"", font=12, width=43, height=2, fg='red')
         self.label_inter.pack(padx=5, pady=5)
+
+        # Create frame with button for showing measurement characteristics
+        self.frame_graph = tk.Frame(self, relief=tk.RAISED, bd=2)
+        self.button_graph = tk.Button(self.frame_graph, text="Show measurement", command=self.show_graphs, font=12)
+        self.button_graph.pack(padx=5, pady=5)
 
         # Set our frames on window
         self.frame_messg.grid(row=0, column=0, sticky="nsew")
         self.frame_buttons.grid(row=1, column=0)
         self.frame_proto_choice.grid(row=2, column=0, sticky="nsew")
         self.frame_inter.grid(row=3, column=0, sticky="nsew")
+        self.frame_graph.grid(row=4, column=0)
 
         # Create a proto choice socket
         self.client_protocol_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -119,6 +128,16 @@ class WeatherStationGUI:
             self.label_inter["text"] = f"{self.proto} is actually choosen"
 
 
+    def show_graphs(self):
+        print('graphs')
+        # Create characteristics
+        # # wsgraphs = wsgraph.WeatherStationGraphs(self.client_pc)
+        # wsgraphs.graph_run()
+        plt.plot([1, 2, 3, 4], [1, 2, 3, 4])
+        plt.show()
+
+
+
     def close_window(self):
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
-            self.window.destroy()
+            self.destroy()

@@ -4,40 +4,93 @@ import usocket
 import _thread
 import time
 import pycom
+import ustruct
 
 
-class WIFI_SERVER:
-    def __init__(self, wlan):
-        self.wlan = wlan
-        # Set up server socket
-        self.serversocket = usocket.socket(usocket.AF_INET, usocket.SOCK_STREAM)
-        self.serversocket.setsockopt(usocket.SOL_SOCKET, usocket.SO_REUSEADDR, 1)
-        self.serversocket.bind(("192.168.4.1", 50000))
-        # Accept maximum of 2 connections at the same time
-        self.serversocket.listen(3)
+class WifiClient:
+    def __init__(self, client_data):
+        self.client_data = client_data
+        self.login = 'AM2320_CLIENT'
+        # Setup device as WiFi client
+        self.wlan = WLAN(mode=WLAN.STA)
+        self.server_address = '192.168.4.1'
+        self.server_port = 50000
 
 
-    def wait_for_client_connection(self):
-        print('Wait for client')
-        (self.clientsocket, self.clientaddress) = self.serversocket.accept() # accept client connection
-        print('Client connected - ', self.clientaddress)
-        return self.clientsocket
-
-class WIFI_CLIENT:
-    def __init__(self, wlan, server_address, server_port):
-        self.server_address = server_address
-        self.server_port = server_port
-
-        # Setup device as WiFi client and connect to AP
-        self.wlan = wlan
+    def connect_to_wifi_server(self):
         self.wlan.connect(ssid='WEATHER_STATION_AP', auth=(WLAN.WPA2,'weather123'))
         print('Connecting to WiFi')
-        while not wlan.isconnected():
+        while not self.wlan.isconnected():
             machine.idle()
         print("WiFi connected")
 
+
+    def connect_to_meas_socket(self):
         # Create a client socket
         self.client_socket = usocket.socket(usocket.AF_INET, usocket.SOCK_STREAM)
         # Connect to server
         self.client_socket.connect(usocket.getaddrinfo(self.server_address, self.server_port)[0][-1])
+        # Try to logging till the server is ready for setup connection
+        self.client_socket.send(self.login) # Authenticate
+        # Check if user logged or need wait for connection
+        print('Wait for login to server...')
+        login_status = self.client_socket.recv(20).decode() # wait for server response
+        while True:
+            print(login_status)
+            if login_status == 'SUCCESS':
+                break
+            else:
+                self.client_socket.close()
+                self.client_socket = usocket.socket(usocket.AF_INET, usocket.SOCK_STREAM)
+                self.client_socket.connect(usocket.getaddrinfo(self.server_address, self.server_port)[0][-1])
+                self.client_socket.send(self.login) # Authenticate
+            print('Wait for login to server...')
+            login_status = self.client_socket.recv(20).decode() # wait for server response
+            time.sleep(2)
         print('Connected to the server')
+
+
+    def connect_to_proto_socket(self):
+        # Connect to protocol choice socket
+        self.client_proto_socket = usocket.socket(usocket.AF_INET, usocket.SOCK_STREAM)
+        self.client_proto_socket.connect(usocket.getaddrinfo(self.server_address, self.server_port)[0][-1])
+        print('Wait for protocol choice...')
+        proto = self.client_proto_socket.recv(20).decode() # Initial
+        print('Protocol choice: ', proto)
+        return proto
+
+
+    def start_proto_thread(self, client_data):
+        _thread.start_new_thread(self.client_proto_thread, (self.client_proto_socket, client_data)) # Start protocol choice thread
+
+
+    def start_meas_thread(self, client_data):
+        _thread.start_new_thread(self.client_meas_thread, (self.client_socket, client_data))
+
+
+    # WiFi client measurement thread
+    def client_meas_thread(self, meassocket, client_data):
+        while True:
+            if client_data.protocol != 'WiFi': # stop thread
+                client_data.HUMIDITY = 0
+                client_data.TEMPERATURE = 0
+                break
+            if client_data.MEASURE_READY == True:
+                with client_data.lock:
+                    print('Send humidity and temperature measurement to server')
+                    data = ustruct.pack('ff', client_data.HUMIDITY, client_data.TEMPERATURE)
+                    meassocket.send(data)
+                    client_data.MEASURE_READY = False
+        meassocket.close()
+
+
+    # Thread for receive protocol choice
+    def client_proto_thread(self, protosocket, client_data):
+        while True:
+            if client_data.protocol != 'WiFi': # stop thread
+                client_data.HUMIDITY = 0
+                client_data.TEMPERATURE = 0
+                break
+            client_data.protocol = protosocket.recv(20).decode()
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!New protocol:', client_data.protocol)
+        protosocket.close()

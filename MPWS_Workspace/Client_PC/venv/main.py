@@ -5,6 +5,7 @@ import time
 import socket
 import struct
 from Client_PC import PC_CLIENT
+import WeatherStationGraphs as wsgraph
 
 
 def main():
@@ -12,11 +13,10 @@ def main():
     client_pc = PC_CLIENT()
 
     # Create gui
-    window = tk.Tk()
-    mywin = wsg.WeatherStationGUI(window)
+    mywin = wsg.WeatherStationGUI(client_pc)
 
     # Start GUI
-    window.mainloop()
+    mywin.mainloop()
 
 
 if __name__ == '__main__':

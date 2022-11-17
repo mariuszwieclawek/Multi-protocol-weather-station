@@ -1,8 +1,8 @@
 import ubinascii
 import time
-from machine import I2C
+from machine import I2C, Timer
 import pycom
-
+import _thread
 
 LPS25HB_ADDRESS = 0x5D
 
@@ -20,17 +20,37 @@ LPS25HB_CTRL_REG1_SETUP = 0xC0  # wakeup and set measurement with a frequency of
 
 
 class LPS25HB:
-    def __init__(self, i2c):
-        self.i2c = i2c
+    def __init__(self):
+        self.i2c = I2C(0, I2C.MASTER, baudrate=100000)
         self.address = LPS25HB_ADDRESS
+        self.chrono = Timer.Chrono()
 
         # Sensor by default in sleep mode, we have to wake it up
-        i2c.writeto_mem(self.address, LPS25HB_CTRL_REG1, LPS25HB_CTRL_REG1_SETUP)
+        self.i2c.writeto_mem(self.address, LPS25HB_CTRL_REG1, LPS25HB_CTRL_REG1_SETUP)
 
         # Calibration pressure offset
         # value = |measure - real_measure| * 16 // value is two complements
         # i2c.writeto_mem(self.address, LPS25HB_RPDS_L, value)
         # i2c.writeto_mem(self.address, LPS25HB_RPDS_H, value>>8)
+
+
+    # LPS25HB sensor thread
+    def lps25hb_thread(self, client_data):
+        self.chrono.start()
+        while True:
+            start = self.chrono.read() # to calculate the time of measurement
+            with client_data.lock:
+                client_data.PRESSURE = self.pressure_meas()
+                client_data.TEMPERATURE = self.temperature_meas()
+                client_data.MEASURE_READY = True
+                print('PRESSURE: ', client_data.PRESSURE)
+                print('TEMPERATURE: ', client_data.TEMPERATURE)
+            end = self.chrono.read() # read elapsed time
+            time.sleep(1-(end-start)) # meas every one second sleep=1-measurement_time
+
+
+    def start_measurement(self, client_data):
+        _thread.start_new_thread(self.lps25hb_thread, (client_data,)) # Start protocol choice thread
 
 
     def twos_complement(self, val, bits):

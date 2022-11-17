@@ -1,6 +1,7 @@
-from machine import I2C
+from machine import I2C, Timer
 import ustruct
 import time
+import _thread
 
 
 AM2320_ADDRESS = 0x5C
@@ -11,11 +12,30 @@ AM2320_REG_HUM_H = 0x00
 
 
 class AM2320:
-    def __init__(self, i2c):
-        self.i2c = i2c
+    def __init__(self):
+        self.i2c = I2C(0, I2C.MASTER, baudrate=100000)
+        self.chrono = Timer.Chrono()
         self.address = AM2320_ADDRESS
         self.hum = 0
         self.temp = 0
+
+    def start_measurement(self, client_data):
+        _thread.start_new_thread(self.am2320_thread, (client_data,)) # Start protocol choice thread
+
+    # AM2320 sensor thread
+    def am2320_thread(self, client_data):
+        self.chrono.start()
+        while True:
+            start = self.chrono.read() # to calculate the time of measurement
+            with client_data.lock:
+                (hum, temp) = self.temp_and_hum_measurement()
+                client_data.HUMIDITY = hum
+                client_data.TEMPERATURE = temp
+                client_data.MEASURE_READY = True
+                print('Humidity: ', hum)
+                print('Temperature: ', temp)
+            end = self.chrono.read() # read elapsed time
+            time.sleep(1-(end-start)) # meas every one second sleep=1-measurement_time
 
 
     def crc16(self, buff):
@@ -82,11 +102,13 @@ class AM2320:
             raise Exception('AM2320 TEMPERATURE CRC ERROR')
 
         # Temperature and humidity calculation
-        self.hum = self.humidity_calc(buff[2], buff[3])
-        self.temp = self.temperature_calc(buff[4], buff[5])
+        hum = self.humidity_calc(buff[2], buff[3])
+        temp = self.temperature_calc(buff[4], buff[5])
 
         # Wait before next measurement cycle
         time.sleep_ms(100)
+
+        return (hum, temp)
 
 
 # i2c = I2C(0, I2C.MASTER, baudrate=100000)

@@ -4,8 +4,9 @@ import pycom
 import _thread
 import time
 import ustruct
-from wifi import WIFI_SERVER
-from wifi import WIFI_SERVER_CONTROLLER
+from wifi import WifiServer
+from ble import BleServer
+from server import ServerData
 
 
 def main():
@@ -13,36 +14,41 @@ def main():
     pycom.heartbeat(False)
     pycom.rgbled(0x00FF00)
 
-    # Create server WiFi
-    wifi_server = WIFI_SERVER()
+    # For saving measurement data and protocol choice
+    server_data = ServerData()
 
-    # Create WiFi controller
-    wifi_controller = WIFI_SERVER_CONTROLLER(wifi_server)
-    wifi_controller.connect_with_pc()
+    # Create server WiFi for handling data between Fipy and PC
+    wifi_server = WifiServer(server_data)
+    wifi_server.wifi_ap_init()
 
+    wifi_server.connect_to_pc_meas_socket()
+    server_data.protocol = wifi_server.connect_to_pc_proto_socket()
+    wifi_server.start_pc_proto_thread(server_data)
+    wifi_server.start_pc_meas_thread(server_data)
+
+    # server_data.protocol = 'WiFi'
     while True:
-        if wifi_controller.PROTOCOL != wifi_controller.PROTOCOL_BUFFER:
-            print('Protocol chosen: ', wifi_controller.PROTOCOL)
-            if wifi_controller.PROTOCOL == 'WiFi':
-                wifi_controller.PROTOCOL_BUFFER = 'WiFi'
-                while True:
-                    # Connect with sensors. Start reading data from sensors and send them to pc client
-                    wifi_controller.connect_with_sensors()
-                    # Check if sensors connected properly and exit infinity loop
-                    if wifi_controller.am2320_connection_success == True and wifi_controller.lps25hb_connection_success == True:
-                        wifi_controller.am2320_connection_success = False
-                        wifi_controller.lps25hb_connection_success = False
-                        break
-            elif wifi_controller.PROTOCOL == 'BLE':
-                wifi_controller.PROTOCOL_BUFFER = 'BLE'
+        # When new protocol choice appear
+        if server_data.protocol != server_data.protocol_buffer:
+            server_data.protocol_buffer = server_data.protocol
+            print('Protocol chosen: ', server_data.protocol)
+            if server_data.protocol == 'WiFi':
+                # Connect with sensors. Start reading data from sensors and send them to pc client
+                wifi_server.connect_with_sensors()
+                wifi_server.start_am2320_meas_thread(server_data)
+                wifi_server.start_lps25hb_meas_thread(server_data)
+                wifi_server.start_am2320_proto_thread(server_data)
+                wifi_server.start_lps25hb_proto_thread(server_data)
+                print('WiFi')
+            elif server_data.protocol == 'BLE':
+                ble_server = BleServer()
+                ble_server.start_ble_advertise()
+                ble_server.start_new_proto_choice_thread(server_data)
                 print('BLE')
-                pass
-            elif wifi_controller.PROTOCOL == 'Sigfox':
-                wifi_controller.PROTOCOL_BUFFER = 'Sigfox'
+            elif server_data.protocol == 'Sigfox':
                 print('Sigfox')
                 pass
-            elif wifi_controller.PROTOCOL == 'LTE-M':
-                wifi_controller.PROTOCOL_BUFFER = 'LTE-M'
+            elif server_data.protocol == 'LTE-M':
                 print('LTE-M')
                 pass
 
