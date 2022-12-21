@@ -4,7 +4,7 @@ import matplotlib.animation as animation
 
 
 class WeatherStationGraphs():
-    def __init__(self, meas):
+    def __init__(self):
         self.meas = meas
         # Create figure for plotting
         self.fig, self.axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 7), label='Weather station characteristics')
@@ -19,10 +19,14 @@ class WeatherStationGraphs():
     def animate(self, i):
         # Add x and y to lists
         self.xs.append(dt.datetime.now().strftime('%H:%M:%S'))
-        self.ys1.append(self.meas.AM2320_TEMPERATURE)
-        self.ys2.append(self.meas.AM2320_HUMIDITY)
-        self.ys3.append(self.meas.LPS25HB_PRESSURE)
-        self.ys4.append(self.meas.LPS25HB_TEMPERATURE)
+        # self.ys1.append(self.meas.AM2320_TEMPERATURE)
+        # self.ys2.append(self.meas.AM2320_HUMIDITY)
+        # self.ys3.append(self.meas.LPS25HB_PRESSURE)
+        # self.ys4.append(self.meas.LPS25HB_TEMPERATURE)
+        self.ys1.append(1)
+        self.ys2.append(2)
+        self.ys3.append(3)
+        self.ys4.append(4)
 
         # Limit x and y lists to 20 items
         self.xs = self.xs[-20:]
@@ -67,6 +71,8 @@ class WeatherStationGraphs():
         self.fig.tight_layout()
 
     def graph_run(self):
-        # ani = animation.FuncAnimation(self.fig, self.animate, interval=1000)
-        plt.plot([1,2,3,4],[1,2,3,4])
-        plt.show()
+        ani = animation.FuncAnimation(self.fig, self.animate, interval=1000)
+        # plt.plot([1,2,3,4],[1,2,3,4])
+        # plt.show()
+
+wsg = WeatherStationGraphs()

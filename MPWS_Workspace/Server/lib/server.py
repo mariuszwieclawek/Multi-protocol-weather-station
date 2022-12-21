@@ -1,4 +1,4 @@
-
+import _thread
 
 class ServerData:
     def __init__(self):
@@ -8,3 +8,4 @@ class ServerData:
         self.AM2320_TEMPERATURE = 0
         self.LPS25HB_PRESSURE = 0
         self.LPS25HB_TEMPERATURE = 0
+        self.lock = _thread.allocate_lock()

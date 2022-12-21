@@ -67,7 +67,7 @@ class TEST(tk.Tk):
         self.label_proto_choice.pack(side=tk.TOP, fill=tk.X)
 
         # Create frame with label for interacting with user
-        self.label_inter = tk.Label(self, text=f"s", font=12, width=43, height=2, fg='red')
+        self.label_inter = tk.Label(self, text=f"", font=12, width=43, height=2, fg='red')
         self.label_inter.pack(side=tk.TOP, fill=tk.X)
 
         # Create a proto choice socket
@@ -76,13 +76,7 @@ class TEST(tk.Tk):
         self.SERVER_ADDRESS = '192.168.4.1'
         self.SERVER_PORT = 50000
         self.client_protocol_socket.connect(socket.getaddrinfo(self.SERVER_ADDRESS, self.SERVER_PORT)[0][-1])
-        print('Connected to the server - protocol c hoice socket')
-
-        # Create thread for protocol choice
-        self.proto_thread = threading.Thread(target=self.proto_choice_thread, args=(self.client_protocol_socket,))
-        self.proto_thread.daemon = True  # Daemon threads are those threads which are killed when the main program exits.
-        self.proto_thread.start()
-
+        print('Connected to the server - protocol choice socket')
 
         self.mainloop()
 
@@ -102,11 +96,12 @@ class TEST(tk.Tk):
             self.ys3 = self.ys3[-20:]
             self.ys4 = self.ys4[-20:]
 
+            # Plot values
             self.ax1.clear()
             self.ax1.plot(self.xs, self.ys1)
             self.ax1.set_ylabel(f'Temperature [\N{DEGREE SIGN}C]')
             self.ax1.set_title('AM2320 - Temperature')
-            self.ax1.tick_params(axis='x', labelrotation = 45)
+            self.ax1.tick_params(axis='x', labelrotation=45)
             self.ax1.grid()
 
             self.ax2.clear()
@@ -133,28 +128,11 @@ class TEST(tk.Tk):
             self.fig.tight_layout()
 
 
-    def proto_choice_thread(self, proto_socket):
-        while True:
-            if self.proto != self.protobuff:
-                if self.proto == 'WiFi':
-                    proto_socket.send(b'WiFi')
-                    self.protobuff = 'WiFi'
-                elif self.proto == 'BLE':
-                    proto_socket.send(b'BLE')
-                    self.protobuff = 'BLE'
-                elif self.proto == 'Sigfox':
-                    proto_socket.send(b'Sigfox')
-                    self.protobuff = 'Sigfox'
-                elif self.proto == 'LTE-M':
-                    proto_socket.send(b'LTE-M')
-                    self.protobuff = 'LTE-M'
-        proto_socket.close()
-
-
     def wifi_choice(self):
         self.label_inter["text"] = ""
         self.proto = 'WiFi'
         if self.proto != self.protobuff:
+            self.client_protocol_socket.send(b'WiFi')
             self.label_proto_choice["text"] = f"Choice: {self.proto}"
             print('Button: WiFi')
         else:
@@ -165,6 +143,7 @@ class TEST(tk.Tk):
         self.label_inter["text"] = ""
         self.proto = 'BLE'
         if self.proto != self.protobuff:
+            self.client_protocol_socket.send(b'BLE')
             self.label_proto_choice["text"] = f"Choice: {self.proto}"
             print('Button: BLE')
         else:
@@ -175,6 +154,7 @@ class TEST(tk.Tk):
         self.label_inter["text"] = ""
         self.proto = 'Sigfox'
         if self.proto != self.protobuff:
+            self.client_protocol_socket.send(b'Sigfox')
             self.label_proto_choice["text"] = f"Choice: {self.proto}"
             print('Button: Sigfox')
         else:
@@ -185,6 +165,7 @@ class TEST(tk.Tk):
         self.label_inter["text"] = ""
         self.proto = 'LTE-M'
         if self.proto != self.protobuff:
+            self.client_protocol_socket.send(b'LTE-M')
             self.label_proto_choice["text"] = f"Choice: {self.proto}"
             print('Button: LTE')
         else:
@@ -199,4 +180,18 @@ from Client_PC import PC_CLIENT
 
 pc_client = PC_CLIENT()
 test = TEST(pc_client)
+# Start GUI
+test.mainloop()
+
+# class TESTdata():
+#     def __init__(self):
+#         self.AM2320_TEMPERATURE = 0
+#         self.AM2320_HUMIDITY = 0
+#         self.LPS25HB_TEMPERATURE = 0
+#         self.LPS25HB_PRESSURE = 0
+#
+# pc_client = TESTdata()
+# test = TEST(pc_client)
+# # Start GUI
+# test.mainloop()
 

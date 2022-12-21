@@ -5,38 +5,40 @@ import time
 import ustruct
 
 
-class BleClientB(Bluetooth):
+class BleClientB():
     def __init__(self):
+        self.ble = Bluetooth()
         self.BLE_SERVER_NAME = 'WEATHER_STATION_BLE_SERVER'
         self.lps25hb_meas_service_uuid = 0x0020
-        self.lps25hb_prot_service_uuid = 0x0021
+        # self.lps25hb_prot_service_uuid = 0x0021
         self.lps25hb_meas_serv_temp_char_uuid = 0x0200
         self.lps25hb_meas_serv_press_char_uuid = 0x0201
-        self.lps25hb_prot_serv_char_uuid = 0x0250
+        # self.lps25hb_prot_serv_char_uuid = 0x0250
         self.srv_lps25hb = 0
-        self.srv_lps25hb_proto = 0
+        # self.srv_lps25hb_proto = 0
         self.char_lp_temp = 0
         self.char_lp_press = 0
-        self.char_lp_proto = 0
+        # self.char_lp_proto = 0
         self.conn = 0
-        self.proto_choice_get = False
+        # self.proto_choice_get = False
 
 
     def connect_to_server(self, client_data):
         self.client_data = client_data
         print('Start scanning for BLE Server')
-        self.start_scan(-1)    # start scanning - no timeout
+        self.ble.start_scan(-1)    # start scanning - no timeout
         while True:
-            advert = self.get_adv() # get advertisment from other bluetooth devices
-            if advert and self.resolve_adv_data(advert.data, Bluetooth.ADV_NAME_CMPL) == self.BLE_SERVER_NAME: #check if it is our weather station: # when we get some adv
+            advert = self.ble.get_adv() # get advertisment from other bluetooth devices
+            if advert and self.ble.resolve_adv_data(advert.data, Bluetooth.ADV_NAME_CMPL) == self.BLE_SERVER_NAME: #check if it is our weather station: # when we get some adv
                 try:
-                    self.conn = self.connect(advert.mac)
+                    self.conn = self.ble.connect(advert.mac)
                 except:
-                    print('Cannot connect')
-                    return False
+                    print('Connot connect')
+                    self.ble.start_scan(-1) # start scanning again
+                    continue
                 else:
                     print('Connected to weather station')
-                    self.stop_scan()
+                    self.ble.stop_scan()
                     return self.conn
 
 
@@ -45,64 +47,59 @@ class BleClientB(Bluetooth):
         for service in services:
             service_uuid = service.uuid()
             if service_uuid == self.lps25hb_meas_service_uuid:
-                print('LPS25HB')
                 self.srv_lps25hb = service
                 characteristics = service.characteristics()
                 for char in characteristics:
                     char_uuid = char.uuid()
                     if char_uuid == self.lps25hb_meas_serv_temp_char_uuid: # char for send temperature
-                        print('LPS25HB_TEMP')
                         self.char_lp_temp = char
                     elif char_uuid == self.lps25hb_meas_serv_press_char_uuid: # char for send pressure
-                        print('LPS25HB_PRESS')
                         self.char_lp_press = char
-            elif service_uuid == self.lps25hb_prot_service_uuid:
-                print('PROTO')
-                self.srv_lps25hb_proto = service
-                characteristics = service.characteristics()
-                for char in characteristics:
-                    char_uuid = char.uuid()
-                    if char_uuid == self.lps25hb_prot_serv_char_uuid: # char for proto choice receive
-                        print('PROTO_CHAR')
-                        self.char_lp_proto = char
-                        self.char_lp_proto.callback(trigger=Bluetooth.CHAR_NOTIFY_EVENT, handler=self.chr_proto_lp_notify_callback)
-
-
-    # Callback when get new protocol choice
-    def chr_proto_lp_notify_callback(self, char):
-        data = char.value()
-        #???convert bytes to string
-        if data == 'WiFi' or data == 'BLE' or data == 'Sigfox' or data == 'LTE-M':
-            self.client_data.protocol = data
-            print('New proto choice: ', data)
-            self.proto_choice_get = True
-        else:
-            print('New proto choice TEST: ', data)
+            # elif service_uuid == self.lps25hb_prot_service_uuid:
+            #     self.srv_lps25hb_proto = service
+            #     characteristics = service.characteristics()
+            #     for char in characteristics:
+            #         char_uuid = char.uuid()
+            #         if char_uuid == self.lps25hb_prot_serv_char_uuid: # char for proto choice receive
+            #             self.char_lp_proto = char
 
 
     def send_measurement_to_server(self, client_data):
         temp = ustruct.pack('f', client_data.TEMPERATURE) # create bytes format
         press = ustruct.pack('f', client_data.PRESSURE) # create bytes format
-        print('Send temperature')
         self.char_lp_temp.write(temp)
-        print('Send pressure')
         self.char_lp_press.write(press)
 
 
-    def send_proto_get_confirmation(self):
-        if self.proto_choice_get == True:
-            print('Send proto get confirmation')
-            self.char_lp_proto.write('TRUE')
-            self.proto_choice_get = False
+    # def read_proto_value(self):
+    #     proto = self.char_lp_proto.read().decode()
+    #     print('Protocol choice read:', proto)
+    #     return proto
 
 
-# lps25 = lps25Test()
+
+
+# class ClientDataTest:
+#     def __init__(self):
+#         self.TEMPERATURE = 25
+#         self.PRESSURE = 1000
+#         self.HUMIDITY = 60
+#         self.protocol = 'none'
+#
+# client_data = ClientDataTest()
 # ble_clt = BleClientB()
 #
+# print('WESZLO DO BLE')
+# TEST_FLAG = True
+# ble_clt = BleClientB()
 # while True:
-#     conn = ble_clt.connect_to_server()
+#     conn = ble_clt.connect_to_server(client_data)
 #     ble_clt.register_lps25hb_serv_and_char(conn)
-#     ble_clt.send_measurement_to_server(lps25)
-#     ble_clt.send_proto_get_confirmation()
+#     client_data.protocol = ble_clt.read_proto_value()
+#     if client_data.protocol != 'BLE': # stop thread
+#         conn.disconnect()
+#         del ble_clt
+#         break
+#     ble_clt.send_measurement_to_server(client_data)
 #     conn.disconnect()
-#     time.sleep(5)
+#     time.sleep(1)

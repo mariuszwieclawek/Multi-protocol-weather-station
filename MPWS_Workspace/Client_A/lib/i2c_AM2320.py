@@ -32,8 +32,8 @@ class AM2320:
                 client_data.HUMIDITY = hum
                 client_data.TEMPERATURE = temp
                 client_data.MEASURE_READY = True
-                print('Humidity: ', hum)
-                print('Temperature: ', temp)
+                # print('Humidity: ', hum)
+                # print('Temperature: ', temp)
             end = self.chrono.read() # read elapsed time
             time.sleep(1-(end-start)) # meas every one second sleep=1-measurement_time
 
@@ -85,36 +85,40 @@ class AM2320:
         reading_frame_format = ustruct.pack('bbb', AM2320_READ_REG, AM2320_REG_HUM_H, number_of_registers) # create 3 bytes frame
 
         # Send reading frame to sensor
-        self.i2c.writeto(self.address, reading_frame_format)
+        try:
+            self.i2c.writeto(self.address, reading_frame_format)
+        except OSError:
+            time.sleep_ms(100)
+            return (0,0)
+        else:
+            # Wait at least 1.5ms (documentation)
+            time.sleep_ms(2)
 
-        # Wait at least 1.5ms (documentation)
-        time.sleep_ms(2)
+            # Read data response from sensor
+            buff = self.i2c.readfrom_mem(self.address, 0, 8) # read 6 bytes
 
-        # Read data response from sensor
-        buff = self.i2c.readfrom_mem(self.address, 0, 8) # read 6 bytes
+            # Wait at least 30us (documentation)
+            time.sleep_us(50)
 
-        # Wait at least 30us (documentation)
-        time.sleep_us(50)
+            # CRC calculation
+            crc = buff[7]<<8 | buff[6] # little endian
+            if (crc != self.crc16(buff[:-2])):
+                raise Exception('AM2320 TEMPERATURE CRC ERROR')
 
-        # CRC calculation
-        crc = buff[7]<<8 | buff[6] # little endian
-        if (crc != self.crc16(buff[:-2])):
-            raise Exception('AM2320 TEMPERATURE CRC ERROR')
+            # Temperature and humidity calculation
+            hum = self.humidity_calc(buff[2], buff[3])
+            temp = self.temperature_calc(buff[4], buff[5])
 
-        # Temperature and humidity calculation
-        hum = self.humidity_calc(buff[2], buff[3])
-        temp = self.temperature_calc(buff[4], buff[5])
+            # Wait before next measurement cycle
+            time.sleep_ms(100)
 
-        # Wait before next measurement cycle
-        time.sleep_ms(100)
-
-        return (hum, temp)
+            return (hum, temp)
 
 
-# i2c = I2C(0, I2C.MASTER, baudrate=100000)
-# am2320 = AM2320(i2c)
+
+# am2320 = AM2320()
 #
 # while True:
-#     am2320.temp_and_hum_measurement()
-#     print(am2320.hum)
-#     print(am2320.temp)
+#     hum, temp = am2320.temp_and_hum_measurement()
+#     print(hum)
+#     print(temp)

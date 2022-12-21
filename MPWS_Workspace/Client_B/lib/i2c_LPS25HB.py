@@ -43,8 +43,8 @@ class LPS25HB:
                 client_data.PRESSURE = self.pressure_meas()
                 client_data.TEMPERATURE = self.temperature_meas()
                 client_data.MEASURE_READY = True
-                print('PRESSURE: ', client_data.PRESSURE)
-                print('TEMPERATURE: ', client_data.TEMPERATURE)
+                # print('PRESSURE: ', client_data.PRESSURE)
+                # print('TEMPERATURE: ', client_data.TEMPERATURE)
             end = self.chrono.read() # read elapsed time
             time.sleep(1-(end-start)) # meas every one second sleep=1-measurement_time
 

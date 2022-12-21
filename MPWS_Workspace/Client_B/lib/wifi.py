@@ -28,7 +28,13 @@ class WifiClient:
         # Create a client socket
         self.client_socket = usocket.socket(usocket.AF_INET, usocket.SOCK_STREAM)
         # Connect to server
-        self.client_socket.connect(usocket.getaddrinfo(self.server_address, self.server_port)[0][-1])
+        while True:
+            try:
+                self.client_socket.connect(usocket.getaddrinfo(self.server_address, self.server_port)[0][-1])
+            except OSError:
+                continue
+            else:
+                break
         # Try to logging till the server is ready for setup connection
         self.client_socket.send(self.login) # Authenticate
         # Check if user logged or need wait for connection
@@ -59,10 +65,6 @@ class WifiClient:
         return proto
 
 
-    def start_proto_thread(self, client_data):
-        _thread.start_new_thread(self.client_proto_thread, (self.client_proto_socket, client_data)) # Start protocol choice thread
-
-
     def start_meas_thread(self, client_data):
         _thread.start_new_thread(self.client_meas_thread, (self.client_socket, client_data))
 
@@ -78,18 +80,31 @@ class WifiClient:
                 with client_data.lock:
                     print('Send humidity and temperature measurement to server')
                     data = ustruct.pack('ff', client_data.PRESSURE, client_data.TEMPERATURE)
-                    meassocket.send(data)
-                    client_data.MEASURE_READY = False
+                    try:
+                        meassocket.send(data)
+                    except:
+                        break
+                    else:
+                        client_data.MEASURE_READY = False
         meassocket.close()
 
 
-    # Thread for receive protocol choice
-    def client_proto_thread(self, protosocket, client_data):
-        while True:
-            client_data.protocol = protosocket.recv(20).decode()
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!New protocol:', client_data.protocol)
-            if client_data.protocol != 'WiFi': # stop thread
-                client_data.PRESSURE = 0
-                client_data.TEMPERATURE = 0
-                break
-        protosocket.close()
+    # def start_proto_thread(self, client_data):
+    #     _thread.start_new_thread(self.client_proto_thread, (self.client_proto_socket, client_data)) # Start protocol choice thread
+
+
+    # # Thread for receive protocol choice
+    # def client_proto_thread(self, protosocket, client_data):
+    #     while True:
+    #         if client_data.protocol != 'WiFi': # stop thread
+    #             client_data.PRESSURE = 0
+    #             client_data.TEMPERATURE = 0
+    #             break
+    #         try:
+    #             client_data.protocol = protosocket.recv(20).decode()
+    #         except:
+    #             break
+    #         else:
+    #             print('!!!New protocol!!! : ', client_data.protocol)
+    #
+    #     protosocket.close()

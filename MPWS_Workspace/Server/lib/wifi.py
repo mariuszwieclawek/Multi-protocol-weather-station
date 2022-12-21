@@ -8,14 +8,12 @@ import ustruct
 
 
 class WifiServer:
-    def __init__(self, server_data):
-        self.server_data = server_data
+    def __init__(self):
         self.server_address = '192.168.4.1'
         self.server_port = 50000
         self.client_pc_login = 'CLIENT_PC_MEASUREMENT'
         self.client_a_login = 'AM2320_CLIENT'
         self.client_b_login = 'LPS25HB_CLIENT'
-        self.lock = _thread.allocate_lock()
         self.am2320_connection_success = False
         self.lps25hb_connection_success = False
 
@@ -47,11 +45,11 @@ class WifiServer:
             client_name = self.client_pc_meas_socket.recv(30).decode()
             if client_name == self.client_pc_login:
                 self.client_pc_meas_socket.send('SUCCESS')
-                print('CLIENT_PC connected') # CLIENT_PC connection
+                print('-> CLIENT_PC connected') # CLIENT_PC connection
                 break
             else:
                 # unrecognised client connected
-                print('Unrecognised client connected, close socket')
+                print('-> Unrecognised client connected, close socket')
                 self.client_pc_meas_socket.send('FAILURE')
                 self.client_pc_meas_socket.close()
 
@@ -62,6 +60,7 @@ class WifiServer:
         # Initial protocol choice from PC
         print('Wait for protocol choice in PC Client...') # Protocol choice
         proto_choice = self.client_pc_proto_socket.recv(20).decode() # receive data from server
+        print('-> Protocol choice: ', proto_choice)
         return proto_choice
 
 
@@ -75,7 +74,7 @@ class WifiServer:
     # Thread for send measurement
     def client_pc_meas_thread(self, clientsocket, server_data):
         while True:
-            with self.lock:
+            with server_data.lock:
                 if server_data.AM2320_HUMIDITY and server_data.AM2320_TEMPERATURE and server_data.LPS25HB_PRESSURE and server_data.LPS25HB_TEMPERATURE != 0: # wait for measurement after start program
                     data = ustruct.pack('ffff', server_data.AM2320_HUMIDITY, server_data.AM2320_TEMPERATURE, server_data.LPS25HB_PRESSURE, server_data.LPS25HB_TEMPERATURE)
                     clientsocket.send(data)
@@ -85,13 +84,15 @@ class WifiServer:
     # Thread for receive protocol choice
     def client_pc_proto_thread(self, clientsocket, server_data):
         while True:
-            server_data.protocol = clientsocket.recv(20).decode()
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!New protocol:', server_data.protocol)
+            proto = clientsocket.recv(20).decode()
+            if proto == 'WiFi' or 'BLE' or 'LoRa':
+                server_data.protocol = proto
+                print('!!!!!!New protocol!!!!!!!!  :  ', server_data.protocol)
         clientsocket.close()
 
 
     # Connect with sensor stations (AM2320 and LPS25HB)
-    def connect_with_sensors(self):
+    def connect_with_sensors(self, server_data):
         while True:
             if self.am2320_connection_success == True and self.lps25hb_connection_success == True:
                 self.am2320_connection_success = False
@@ -106,22 +107,22 @@ class WifiServer:
                 self.client_am_meas_socket.send('SUCCESS')
                 print('AM2320_CLIENT connected')
                 self.am2320_connection_success = True
-                # Wait for protocol choice socket
-                self.client_am_proto_socket = self.wait_for_client_connection()
-                print('Connected with protocol choice socket AM2320')
-                self.client_am_proto_socket.send(self.server_data.protocol) # Initial choice
-                print('Protocol choice send to AM2320: ', self.server_data.protocol)
+                # # Wait for protocol choice socket
+                # self.client_am_proto_socket = self.wait_for_client_connection()
+                # print('Connected with protocol choice socket AM2320')
+                # self.client_am_proto_socket.send(server_data.protocol) # Initial choice
+                # print('Protocol choice send to AM2320: ', server_data.protocol)
             elif client_name == self.client_b_login:
                 # LPS25HB_CLIENT client connection
                 self.client_lp_meas_socket = self.sensor_socket
                 self.client_lp_meas_socket.send('SUCCESS')
                 print('LPS25HB_CLIENT connected')
                 self.lps25hb_connection_success = True
-                # Wait for protocol choice socket
-                self.client_lp_proto_socket = self.wait_for_client_connection()
-                print('Connected with protocol choice socket LPS25HB')
-                self.client_lp_proto_socket.send(self.server_data.protocol) # Initial choice
-                print('Protocol choice send to LPS25HB: ', self.server_data.protocol)
+                # # Wait for protocol choice socket
+                # self.client_lp_proto_socket = self.wait_for_client_connection()
+                # print('Connected with protocol choice socket LPS25HB')
+                # self.client_lp_proto_socket.send(server_data.protocol) # Initial choice
+                # print('Protocol choice send to LPS25HB: ', server_data.protocol)
             else:
                 # unrecognised client connected
                 print('Unrecognised client connected, close socket')
@@ -137,13 +138,13 @@ class WifiServer:
         _thread.start_new_thread(self.wifi_client_lps25hb_thread, (self.client_lp_meas_socket, server_data))
 
 
-    # Start AM2320 client protocol choice thread
-    def start_am2320_proto_thread(self, server_data):
-        _thread.start_new_thread(self.wifi_client_am2320_proto_thread, (self.client_am_proto_socket, server_data))
-
-    # Start LPS25HB client protocol choice thread
-    def start_lps25hb_proto_thread(self, server_data):
-        _thread.start_new_thread(self.wifi_client_lps25hb_proto_thread, (self.client_lp_proto_socket, server_data))
+    # # Start AM2320 client protocol choice thread
+    # def start_am2320_proto_thread(self, server_data):
+    #     _thread.start_new_thread(self.wifi_client_am2320_proto_thread, (self.client_am_proto_socket, server_data))
+    #
+    # # Start LPS25HB client protocol choice thread
+    # def start_lps25hb_proto_thread(self, server_data):
+    #     _thread.start_new_thread(self.wifi_client_lps25hb_proto_thread, (self.client_lp_proto_socket, server_data))
 
     # Thread for receive sensor measurement AM2320
     def wifi_client_am2320_thread(self, sensorsocket, server_data):
@@ -152,14 +153,17 @@ class WifiServer:
                 server_data.AM2320_HUMIDITY = 0
                 server_data.AM2320_TEMPERATURE = 0
                 break
-            with self.lock:
-                print('Wait for AM2320 measurement...')
-                data = sensorsocket.recv(8) # receive 2xfloat = 8bytes
-                buff = ustruct.unpack('ff', data) # tuple with measurement values
-                server_data.AM2320_HUMIDITY = buff[0]
-                server_data.AM2320_TEMPERATURE = buff[1]
-                print('Humidity: ', server_data.AM2320_HUMIDITY)
-                print('Temperature: ', server_data.AM2320_TEMPERATURE)
+            with server_data.lock:
+                try:
+                    data = sensorsocket.recv(8) # receive 2xfloat = 8bytes
+                    buff = ustruct.unpack('ff', data) # tuple with measurement values
+                except:
+                    break
+                else:
+                    server_data.AM2320_HUMIDITY = buff[0]
+                    server_data.AM2320_TEMPERATURE = buff[1]
+                    print('WiFi -> Humidity    - AM2320  = ', server_data.AM2320_HUMIDITY)
+                    print('WiFi -> Temperature - AM2320  = ', server_data.AM2320_TEMPERATURE)
         sensorsocket.close()
 
 
@@ -170,36 +174,39 @@ class WifiServer:
                 server_data.LPS25HB_PRESSURE = 0
                 server_data.LPS25HB_TEMPERATURE = 0
                 break
-            with self.lock:
-                print('Wait for LPS25HB measurement...')
-                data = sensorsocket.recv(8) # receive 2xfloat = 8bytes
-                buff = ustruct.unpack('ff', data) # tuple with measurement values
-                server_data.LPS25HB_PRESSURE = buff[0]
-                server_data.LPS25HB_TEMPERATURE = buff[1]
-                print('Pressure: ', server_data.LPS25HB_PRESSURE)
-                print('Temperature: ', server_data.LPS25HB_TEMPERATURE)
+            with server_data.lock:
+                try:
+                    data = sensorsocket.recv(8) # receive 2xfloat = 8bytes
+                    buff = ustruct.unpack('ff', data) # tuple with measurement values
+                except:
+                    break
+                else:
+                    server_data.LPS25HB_PRESSURE = buff[0]
+                    server_data.LPS25HB_TEMPERATURE = buff[1]
+                    print('WiFi -> Pressure    - LPS25HB = ', server_data.LPS25HB_PRESSURE)
+                    print('WiFi -> Temperature - LPS25HB = ', server_data.LPS25HB_TEMPERATURE)
         sensorsocket.close()
 
 
-    # Thread for send protocol choice to the AM2320_CLIENT
-    def wifi_client_am2320_proto_thread(self, am_proto_clientsocket, server_data):
-        while True:
-            if server_data.protocol != 'WiFi': # send new protocol and stop thread
-                am_proto_clientsocket.send(server_data.protocol)
-                print('Send new protocol choice to AM2320')
-                server_data.AM2320_HUMIDITY = 0
-                server_data.AM2320_TEMPERATURE = 0
-                break
-        am_proto_clientsocket.close()
+    # # Thread for send protocol choice to the AM2320_CLIENT
+    # def wifi_client_am2320_proto_thread(self, am_proto_clientsocket, server_data):
+    #     while True:
+    #         if server_data.protocol != 'WiFi': # send new protocol and stop thread
+    #             am_proto_clientsocket.send(server_data.protocol)
+    #             print('WiFi: Send new protocol choice to AM2320')
+    #             server_data.AM2320_HUMIDITY = 0
+    #             server_data.AM2320_TEMPERATURE = 0
+    #             break
+    #     am_proto_clientsocket.close()
 
 
-    # Thread for send protocol choice to the LPS25HB_CLIENT
-    def wifi_client_lps25hb_proto_thread(self, lp_proto_clientsocket, server_data):
-        while True:
-            if server_data.protocol != 'WiFi': # send new protocol and stop thread
-                lp_proto_clientsocket.send(server_data.protocol)
-                print('Send new protocol choice to LPS25HB')
-                server_data.LPS25HB_PRESSURE = 0
-                server_data.LPS25HB_TEMPERATURE = 0
-                break
-        lp_proto_clientsocket.close()
+    # # Thread for send protocol choice to the LPS25HB_CLIENT
+    # def wifi_client_lps25hb_proto_thread(self, lp_proto_clientsocket, server_data):
+    #     while True:
+    #         if server_data.protocol != 'WiFi': # send new protocol and stop thread
+    #             lp_proto_clientsocket.send(server_data.protocol)
+    #             print('WiFi: Send new protocol choice to LPS25HB')
+    #             server_data.LPS25HB_PRESSURE = 0
+    #             server_data.LPS25HB_TEMPERATURE = 0
+    #             break
+    #     lp_proto_clientsocket.close()
