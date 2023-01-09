@@ -87,24 +87,3 @@ class WifiClient:
                     else:
                         client_data.MEASURE_READY = False
         meassocket.close()
-
-
-    # def start_proto_thread(self, client_data):
-    #     _thread.start_new_thread(self.client_proto_thread, (self.client_proto_socket, client_data)) # Start protocol choice thread
-
-
-    # # Thread for receive protocol choice
-    # def client_proto_thread(self, protosocket, client_data):
-    #     while True:
-    #         if client_data.protocol != 'WiFi': # stop thread
-    #             client_data.PRESSURE = 0
-    #             client_data.TEMPERATURE = 0
-    #             break
-    #         try:
-    #             client_data.protocol = protosocket.recv(20).decode()
-    #         except:
-    #             break
-    #         else:
-    #             print('!!!New protocol!!! : ', client_data.protocol)
-    #
-    #     protosocket.close()

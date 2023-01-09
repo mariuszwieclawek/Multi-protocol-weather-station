@@ -38,17 +38,10 @@ def main():
 
     wifi_server.connect_to_pc_meas_socket()
     server_data.protocol = wifi_server.connect_to_pc_proto_socket()
-    # server_data.protocol_buffer = server_data.protocol
     wifi_server.start_pc_proto_thread(server_data)
     wifi_server.start_pc_meas_thread(server_data)
 
-    # for testing
-    # _thread.start_new_thread(change_proto_thread, (server_data, ))
-    # server_data.protocol = 'WiFi'
-    # server_data.protocol_buffer = server_data.protocol
-    # end testing
-
-    # LORA TESTING
+    # LoRa server, for handling protocol choice between FiPy server and FiPy clients
     lora_server = LoraServer()
     lora_server.start_proto_handling_thread(server_data)
     lora_server.wait_for_client_get_proto()

@@ -23,8 +23,6 @@ class LoraClientB:
             data_recv = lora_sock.recv(64).decode()
             if (len(data_recv) > 0):
                 print('Odebrano: ', data_recv)
-                # print(client_data.protocol_buffer)
-                # print(client_data.protocol)
                 if data_recv == 'WiFi' or data_recv == 'BLE' or data_recv == 'LoRa':
                     lora_sock.send(proto_ack)
                     print('wysłano ack')

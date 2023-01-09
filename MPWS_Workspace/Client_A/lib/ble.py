@@ -10,26 +10,21 @@ class BleClientA():
         self.ble = Bluetooth()
         self.BLE_SERVER_NAME = 'WEATHER_STATION_BLE_SERVER'
         self.am2320_meas_service_uuid = 0x0010
-        # self.am2320_prot_service_uuid = 0x0011
         self.am2320_meas_serv_temp_char_uuid = 0x0100
         self.am2320_meas_serv_hum_char_uuid = 0x0101
-        # self.am2320_prot_serv_char_uuid = 0x0150
         self.srv_am2320 = 0
-        # self.srv_am2320_proto = 0
         self.char_am_temp = 0
         self.char_am_hum = 0
-        # self.char_am_proto = 0
         self.conn = 0
-        # self.proto_choice_get = False
 
 
     def connect_to_server(self, client_data):
-        self.client_data = client_data
         print('Start scanning for BLE Server')
         self.ble.start_scan(-1)    # start scanning - no timeout
         while True:
             advert = self.ble.get_adv() # get advertisment from other bluetooth devices
-            if advert and self.ble.resolve_adv_data(advert.data, Bluetooth.ADV_NAME_CMPL) == self.BLE_SERVER_NAME: #check if it is our weather station: # when we get some adv
+            # when we get some adv need to check by name if it is FiPy Server.
+            if advert and self.ble.resolve_adv_data(advert.data, Bluetooth.ADV_NAME_CMPL) == self.BLE_SERVER_NAME:
                 try:
                     self.conn = self.ble.connect(advert.mac)
                 except:
@@ -55,13 +50,6 @@ class BleClientA():
                         self.char_am_temp = char
                     elif char_uuid == self.am2320_meas_serv_hum_char_uuid: # char for send pressure
                         self.char_am_hum = char
-            # elif service_uuid == self.am2320_prot_service_uuid:
-            #     self.srv_am2320_proto = service
-            #     characteristics = service.characteristics()
-            #     for char in characteristics:
-            #         char_uuid = char.uuid()
-            #         if char_uuid == self.am2320_prot_serv_char_uuid: # char for proto choice receive
-            #             self.char_am_proto = char
 
 
     def send_measurement_to_server(self, client_data):
@@ -69,36 +57,3 @@ class BleClientA():
         hum = ustruct.pack('f', client_data.HUMIDITY) # create bytes format
         self.char_am_temp.write(temp)
         self.char_am_hum.write(hum)
-
-
-    # def read_proto_value(self):
-    #     proto = self.char_am_proto.read().decode()
-    #     print('Protocol choice read:', proto)
-    #     return proto
-
-
-
-
-# class ClientDataTest:
-#     def __init__(self):
-#         self.TEMPERATURE = 25
-#         self.PRESSURE = 1000
-#         self.HUMIDITY = 60
-#         self.protocol = 'none'
-#
-# client_data = ClientDataTest()
-# ble_clt = BleClientA()
-#
-# TEST_FLAG = True
-# ble_clt = BleClientA()
-# while True:
-#     conn = ble_clt.connect_to_server(client_data)
-#     ble_clt.register_am2320_serv_and_char(conn)
-#     client_data.protocol = ble_clt.read_proto_value()
-#     if client_data.protocol != 'BLE': # stop thread
-#         conn.disconnect()
-#         del ble_clt
-#         break
-#     ble_clt.send_measurement_to_server(client_data)
-#     conn.disconnect()
-#     time.sleep(1)
