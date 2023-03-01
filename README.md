@@ -1,1 +1,5 @@
 # Multi-protocol-weather-station
+
+The main purpose of the work was to design and build a prototype of a meteorological station that can use various communication interfaces to transmit measurement data. The user was supposed to be able to control which protocol is responsible for data transmission at a given time using a graphical interface. In order to carry out these tasks, the FiPy platform was chosen, enabling communication via various network technologies such as LoRa, Wi-Fi and Bluetooth Low Energy. A computer was also used on which the application with a graphical interface was created, responsible for the visualization of meteorological data and the selection of the data transmission protocol. The sensors responsible for measuring meteorological data were also a necessary element. For this purpose, the AM2320 temperature and humidity sensor and the LPS25HB temperature and pressure sensor were used.
+
+[Praca inżynierska.pdf](https://github.com/mariuszwieclawek/Multi-protocol-weather-station/files/10865550/Praca.inzynierska.pdf)
